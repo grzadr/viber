@@ -10,6 +10,10 @@ issues:
   whole-files: false
 linters:
   default: all
+  disable:
+    - wsl
+  enable:
+    - wsl_v5
   # enable:
   #   - bodyclose
   #   - exhaustive
@@ -35,6 +39,10 @@ linters:
   #   - wrapcheck
 
   settings:
+    wsl_v5:
+      allow-first-in-block: true
+      allow-whole-block: false
+      branch-max-lines: 2
     depguard:
       rules:
         main:
