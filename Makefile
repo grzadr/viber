@@ -1,4 +1,4 @@
-.PHONY: all test test-verbose test-coverage coverage-html lint build clean
+.PHONY: all test test-verbose test-coverage coverage-html lint build clean generate
 
 # Binary name and output directory
 BINARY_NAME=viber
@@ -10,7 +10,7 @@ COVERAGE_FILE=$(COVERAGE_DIR)/coverage.out
 all: build
 
 # Build the binary (depends on tests and linting passing)
-build: test lint
+build: generate test lint
 	@echo "Building $(BINARY_NAME)..."
 	@mkdir -p $(BIN_DIR)
 	go build -o $(BIN_DIR)/$(BINARY_NAME) .
@@ -45,6 +45,9 @@ coverage-html: test-coverage
 lint:
 	@echo "Running golangci-lint..."
 	golangci-lint run
+
+generate:
+	go generate ./...
 
 # Clean build artifacts
 clean:
