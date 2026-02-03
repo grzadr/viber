@@ -87,24 +87,27 @@ func processPath(path string) ([]AudioPath, error) {
 
 	if info.IsDir() {
 		// Walk the directory recursively
-		err := filepath.WalkDir(absPath, func(p string, d os.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
+		err := filepath.WalkDir(
+			absPath,
+			func(p string, d os.DirEntry, err error) error {
+				if err != nil {
+					return err
+				}
 
-			if d.IsDir() {
+				if d.IsDir() {
+					return nil
+				}
+
+				if audioType := getAudioType(p); audioType != Unknown {
+					result = append(result, AudioPath{
+						Path: p,
+						Type: audioType,
+					})
+				}
+
 				return nil
-			}
-
-			if audioType := getAudioType(p); audioType != Unknown {
-				result = append(result, AudioPath{
-					Path: p,
-					Type: audioType,
-				})
-			}
-
-			return nil
-		})
+			},
+		)
 		return result, err
 	}
 
