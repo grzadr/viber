@@ -24,21 +24,19 @@
         "*.sh": "shellscript",
         ".secrets": "shellscript"
     },
-    // Go setting
     "go.lintTool": "golangci-lint",
     "go.lintFlags": [
-        "--path-mode=abs",
-        "--fast-only"
+        "--path-mode=abs"
     ],
     "go.formatTool": "custom",
-    "go.lintOnSave": "workspace",
     "go.alternateTools": {
-        "customFormatter": "golangci-lint",
+        "customFormatter": "golangci-lint"
     },
     "go.formatFlags": [
         "fmt",
         "--stdin"
     ],
+    "go.lintOnSave": "workspace",
     "go.useLanguageServer": true,
     "cSpell.words": [
         "codecrafters",
