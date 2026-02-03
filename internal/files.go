@@ -7,26 +7,6 @@ import (
 	"strings"
 )
 
-// AudioType represents the type of audio file based on its extension.
-type AudioType int
-
-const (
-	// Unknown represents an unsupported or unknown audio file type.
-	Unknown AudioType = iota
-	FLAC
-	MP3
-	OGG
-	WAV
-	M4A
-	AAC
-	WMA
-	AIFF
-	AIF
-	OPUS
-	APE
-	WV
-)
-
 // extensionToType maps file extensions to their corresponding AudioType.
 var extensionToType = map[string]AudioType{
 	".flac": FLAC,
