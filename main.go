@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/grzadr/viber/internal/config"
+	"github.com/grzadr/viber/internal/files"
 )
 
 func main() {
@@ -15,4 +16,12 @@ func main() {
 	}
 
 	log.Printf("Paths to process: %v\n", cfg.Paths)
+
+	for audioFile, err := range files.GetAudioPaths(cfg.Paths) {
+		if err != nil {
+			log.Printf("Error: %v\n", err)
+		}
+
+		log.Println(audioFile)
+	}
 }

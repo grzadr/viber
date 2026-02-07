@@ -1,9 +1,10 @@
-package internal
+package files
 
 import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"iter"
 	"path/filepath"
 	"strings"
 )
@@ -74,32 +75,21 @@ type AudioPathError struct {
 	Err  error
 }
 
-func (e *AudioPathError) Error() string {
-	return e.Err.Error()
-}
-
-const defaultAudioPathCapacity = 16
-
-// GetAudioPaths takes a list of paths and returns all supported audio files.
-// If a path is a file, it will be included if supported.
-// If a path is a directory, it will be traversed recursively.
-func GetAudioPaths(paths []string) ([]AudioPath, []AudioPathError) {
-	files := make([]AudioPath, 0, defaultAudioPathCapacity*len(paths))
-	var errors []AudioPathError
-
-	for _, path := range paths {
-		pFiles, pErrors := processPath(path)
-		files = append(files, pFiles...)
-		errors = append(errors, pErrors...)
+// GetAudioPaths returns an iterator that yields AudioPath objects and errors
+// found while traversing the provided list of root paths.
+func GetAudioPaths(paths []string) iter.Seq2[AudioPath, error] {
+	return func(yield func(AudioPath, error) bool) {
+		for _, root := range paths {
+			if !walkSingleRoot(root, yield) {
+				return
+			}
+		}
 	}
-
-	return files, errors
 }
 
-func isSimlink(mode fs.FileMode) bool {
-	return mode&fs.ModeSymlink != 0
-}
-
+// walkSingleRoot processes a single root path, converting it to an absolute
+// path
+// and walking its directory tree to find supported audio files.
 func walkSingleRoot(root string, yield func(AudioPath, error) bool) bool {
 	absPath, err := filepath.Abs(root)
 	if err != nil {
