@@ -15,6 +15,10 @@ type ArgsParsed struct {
 	Paths []string
 }
 
+func (a *ArgsParsed) String() string {
+	return fmt.Sprintf("paths: %v", a.Paths)
+}
+
 // ParseArgs parses command-line arguments and returns ArgsParsed struct.
 func ParseArgs(args []string) (*ArgsParsed, error) {
 	flagSet := flag.NewFlagSet("viber", flag.ExitOnError)

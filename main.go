@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"os"
 
 	"github.com/grzadr/viber/internal/config"
@@ -11,13 +12,34 @@ import (
 	"github.com/grzadr/viber/internal/sub"
 )
 
+type App struct {
+	logger *slog.Logger
+}
+
+// NewApp initializes the application with a dedicated logger.
+func NewApp(logger *slog.Logger) *App {
+	return &App{
+		logger: logger,
+	}
+}
+
+func (a *App) DebugLog(msg string, args ...any) {
+	a.logger.Debug(msg, args...)
+}
+
 func main() {
+	opts := &slog.HandlerOptions{Level: slog.LevelDebug}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, opts))
+
+	// 2. Inject it into your application.
+	app := NewApp(logger)
+
 	cfg, err := config.ParseArgs(os.Args[1:])
 	if err != nil {
 		log.Fatalf("Error: %v\n", err)
 	}
 
-	log.Printf("Paths to process: %v\n", cfg.Paths)
+	app.DebugLog("loaded configuration", "config", cfg)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -27,7 +49,7 @@ func main() {
 			log.Printf("Error: %v\n", err)
 		}
 
-		log.Println(audioFile)
+		app.DebugLog("Processing file", "path", audioFile.Path)
 
 		stdout, stderr, cmdErr := sub.StreamCommand(
 			ctx,
@@ -44,15 +66,15 @@ func main() {
 			audioFile.Path,
 		)
 		if cmdErr != nil {
-			log.Printf("Error: %v\n", cmdErr)
+			app.DebugLog("Error: %v\n", cmdErr)
 		}
 
 		for line := range stdout {
-			log.Println(line)
+			app.DebugLog("stdout", "line", line)
 		}
 
 		for line := range stderr {
-			log.Println(line)
+			app.DebugLog("stderr", "line", line)
 		}
 
 		break
