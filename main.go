@@ -3,23 +3,29 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/grzadr/viber/internal/config"
 	"github.com/grzadr/viber/internal/files"
 	"github.com/grzadr/viber/internal/sub"
 )
 
+const DefaultOutputCapacity = 64
+
 type App struct {
 	logger *slog.Logger
 }
 
 // NewApp initializes the application with a dedicated logger.
-func NewApp(logger *slog.Logger) *App {
+func NewApp() *App {
+	opts := &slog.HandlerOptions{Level: slog.LevelDebug}
 	return &App{
-		logger: logger,
+		logger: slog.New(slog.NewJSONHandler(os.Stdout, opts)),
 	}
 }
 
@@ -27,20 +33,54 @@ func (a *App) DebugLog(msg string, args ...any) {
 	a.logger.Debug(msg, args...)
 }
 
-func main() {
-	opts := &slog.HandlerOptions{Level: slog.LevelDebug}
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, opts))
+type MetaDataRaw struct {
+	Streams []Stream `json:"streams"`
+	Format  Format   `json:"format"`
+}
 
-	// 2. Inject it into your application.
-	app := NewApp(logger)
+type Stream struct {
+	SampleRate       int `json:"sample_rate,string"`
+	BitsPerRawSample int `json:"bits_per_raw_sample,string"`
+}
 
-	cfg, err := config.ParseArgs(os.Args[1:])
-	if err != nil {
-		log.Fatalf("Error: %v\n", err)
+type Format struct {
+	Duration float64           `json:"duration,string"`
+	Size     int64             `json:"size,string"`
+	Tags     map[string]string `json:"tags"`
+}
+
+type MetaData struct {
+	Path             string
+	Filename         string
+	SampleRate       int
+	BitsPerRawSample int
+	Duration         float64
+	Size             int64
+}
+
+func NewMetaDataRaw(ch <-chan string) (*MetaDataRaw, error) {
+	var builder strings.Builder
+
+	for chunk := range ch {
+		builder.WriteString(chunk)
 	}
 
-	app.DebugLog("loaded configuration", "config", cfg)
+	m := new(MetaDataRaw)
+	err := json.Unmarshal([]byte(builder.String()), m)
 
+	return m, err
+}
+
+func (m *MetaDataRaw) String() string {
+	prettyJSON, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return fmt.Sprintf("error formatting MediaData: %v", err)
+	}
+
+	return string(prettyJSON)
+}
+
+func run(cfg *config.ArgsParsed, app *App) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -51,7 +91,7 @@ func main() {
 
 		app.DebugLog("Processing file", "path", audioFile.Path)
 
-		stdout, stderr, cmdErr := sub.StreamCommand(
+		stdout, cmdResult, cmdErr := sub.StreamCommand(
 			ctx,
 			"ffprobe",
 			"-v",
@@ -69,14 +109,42 @@ func main() {
 			app.DebugLog("Error: %v\n", cmdErr)
 		}
 
-		for line := range stdout {
-			app.DebugLog("stdout", "line", line)
+		meta, metaErr := NewMetaDataRaw(stdout)
+		if metaErr != nil {
+			return fmt.Errorf(
+				"error getting metadata %s: %w",
+				audioFile.Path,
+				metaErr,
+			)
 		}
 
-		for line := range stderr {
-			app.DebugLog("stderr", "line", line)
+		res := <-cmdResult
+
+		if res.Error != nil {
+			app.DebugLog("Error: %v\n", res.Error)
+			app.DebugLog("Stderr: %v\n", res.Stderr)
+			app.DebugLog("ExitCode: %v\n", res.ExitCode)
 		}
+
+		app.DebugLog("stdout", "output", meta)
 
 		break
+	}
+
+	return nil
+}
+
+func main() {
+	app := NewApp()
+
+	cfg, err := config.ParseArgs(os.Args[1:])
+	if err != nil {
+		log.Fatalf("Error: %v\n", err)
+	}
+
+	app.DebugLog("loaded configuration", "config", cfg)
+
+	if runErr := run(cfg, app); runErr != nil {
+		log.Fatalf("Error: %v\n", runErr)
 	}
 }
